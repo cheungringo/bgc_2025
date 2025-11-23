@@ -444,9 +444,18 @@ const RadarMissionAnimation = () => {
       ctx.beginPath();
       ctx.moveTo(CENTER_X, CENTER_Y);
       ctx.lineTo(end.x, end.y);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
       ctx.stroke();
       
       const labelPos = polarToCartesian(angle, MAX_RADIUS + 30);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+      ctx.strokeText(label, labelPos.x, labelPos.y);
       ctx.fillText(label, labelPos.x, labelPos.y);
       
       for (let j = 2; j <= 10; j += 2) {
