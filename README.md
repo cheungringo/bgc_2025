@@ -12,7 +12,7 @@ Make sure you have Node.js installed on your machine (version 14 or higher recom
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/[username]/bgc_2025.git
+   git clone https://github.com/cheungringo/bgc_2025.git
    cd bgc_2025
    ```
 
