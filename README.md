@@ -6,7 +6,56 @@ A React + Vite application built for BGC 2025.
 
 ### Prerequisites
 
-Make sure you have Node.js installed on your machine (version 14 or higher recommended).
+Before you can run this application, you need to install two tools on your computer:
+
+#### 1. Install Node.js v22.21.1
+
+Node.js is what runs the application. Here's how to install it:
+
+**For Windows:**
+1. Go to [nodejs.org](https://nodejs.org)
+2. Download the "LTS" version (should be v22.21.1)
+3. Run the downloaded file and follow the installation steps
+4. Restart your computer when done
+
+**For Mac:**
+1. Go to [nodejs.org](https://nodejs.org)
+2. Download the "LTS" version (should be v22.21.1)
+3. Run the downloaded `.pkg` file and follow the installation steps
+4. Open Terminal (found in Applications > Utilities) to test
+
+**To check if Node.js installed correctly:**
+Open your command prompt (Windows) or Terminal (Mac) and type:
+```bash
+node --version
+```
+You should see `v22.21.1` (or similar).
+
+#### 2. Install Git
+
+Git helps you download and manage code. Here's how to install it:
+
+**For Windows:**
+1. Go to [git-scm.com](https://git-scm.com)
+2. Download Git for Windows
+3. Run the installer and click "Next" through all the options (the defaults are fine)
+
+**For Mac:**
+Git is usually already installed. To check, open Terminal and type:
+```bash
+git --version
+```
+If you see a version number, you're good! If not, install it by typing:
+```bash
+xcode-select --install
+```
+
+**To check if Git installed correctly:**
+Open your command prompt or Terminal and type:
+```bash
+git --version
+```
+You should see a version number.
 
 ### Clone and Setup
 
