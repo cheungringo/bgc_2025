@@ -6,6 +6,7 @@ const RadarMissionAnimation = () => {
   const animationRef = useRef(null);
   
   const [labels] = useState(['Stat A', 'Stat B', 'Stat C', 'Stat D', 'Stat E', 'Stat F']);
+  const [pageTitle, setPageTitle] = useState('Mission Control');
   
   // Missions state (now dynamic)
   const [missions, setMissions] = useState({
@@ -66,16 +67,40 @@ const RadarMissionAnimation = () => {
       name: "Team 1",
       score: 0,
       participants: {
-        p1: { name: "Gordon", stats: [3, 3, 3, 3, 3, 3] },
-        p2: { name: "Alvina", stats: [2, 2, 2, 1, 2, 1] }
+        p1: { name: "Player 1", stats: [3, 3, 3, 3, 3, 3] },
+        p2: { name: "Player 2", stats: [2, 2, 2, 2, 2, 2] },
+        p3: { name: "Player 3", stats: [4, 3, 4, 3, 4, 3] },
+        p4: { name: "Player 4", stats: [1, 2, 2, 2, 1, 2] }
       }
     },
     team2: {
       name: "Team 2",
       score: 0,
       participants: {
-        p3: { name: "Alvin", stats: [1, 2, 2, 2, 2, 1] },
-        p4: { name: "Matt", stats: [3, 3, 3, 3, 3, 3] }
+        p5: { name: "Player 5", stats: [3, 4, 3, 3, 3, 3] },
+        p6: { name: "Player 6", stats: [2, 1, 2, 1, 2, 1] },
+        p7: { name: "Player 7", stats: [4, 4, 4, 4, 4, 4] },
+        p8: { name: "Player 8", stats: [2, 2, 3, 2, 2, 3] }
+      }
+    },
+    team3: {
+      name: "Team 3",
+      score: 0,
+      participants: {
+        p9: { name: "Player 9", stats: [3, 3, 2, 3, 3, 2] },
+        p10: { name: "Player 10", stats: [1, 2, 1, 2, 1, 2] },
+        p11: { name: "Player 11", stats: [4, 5, 4, 5, 4, 5] },
+        p12: { name: "Player 12", stats: [2, 2, 2, 2, 2, 2] }
+      }
+    },
+    team4: {
+      name: "Team 4",
+      score: 0,
+      participants: {
+        p13: { name: "Player 13", stats: [3, 2, 3, 2, 3, 2] },
+        p14: { name: "Player 14", stats: [2, 3, 2, 3, 2, 3] },
+        p15: { name: "Player 15", stats: [4, 4, 3, 4, 3, 4] },
+        p16: { name: "Player 16", stats: [1, 1, 2, 1, 2, 1] }
       }
     }
   });
@@ -88,15 +113,16 @@ const RadarMissionAnimation = () => {
   const [showMissionPolygon, setShowMissionPolygon] = useState(true);
   const [showTeamPolygon, setShowTeamPolygon] = useState(true);
   const [expandedParticipants, setExpandedParticipants] = useState(new Set()); // Track which participants have stats expanded
+  const [editingTeams, setEditingTeams] = useState(new Set()); // Track which teams are being edited
   const fileInputRef = useRef(null);
   const audioContextRef = useRef(null);
   
   const ANIMATION_DURATION = 3000;
   const INITIAL_SPEED = 15;
   const MAX_STAT_VALUE = 10;
-  const CENTER_X = 400;
-  const CENTER_Y = 400;
-  const MAX_RADIUS = 300;
+  const CENTER_X = 250;
+  const CENTER_Y = 250;
+  const MAX_RADIUS = 200;
   const BALL_RADIUS = 8;
   
   // Initialize audio context
@@ -420,7 +446,7 @@ const RadarMissionAnimation = () => {
   };
   
   const drawRadarChart = (ctx, currentBallPos = null) => {
-    ctx.clearRect(0, 0, 800, 800);
+    ctx.clearRect(0, 0, 500, 500);
     
     // Draw concentric circles
     ctx.strokeStyle = '#e0e0e0';
@@ -810,9 +836,24 @@ const RadarMissionAnimation = () => {
       return newSet;
     });
   };
+
+  const toggleTeamEdit = (teamId) => {
+    setEditingTeams(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(teamId)) {
+        newSet.delete(teamId);
+      } else {
+        newSet.add(teamId);
+      }
+      return newSet;
+    });
+  };
   
   const exportToCSV = () => {
     let csv = 'Type,Team ID,Team Name,Team Score,Participant ID,Participant Name,Stat A,Stat B,Stat C,Stat D,Stat E,Stat F,Modifier ID,Modifier Name,Description,Mission Effect A,Mission Effect B,Mission Effect C,Mission Effect D,Mission Effect E,Mission Effect F,Participant Effect A,Participant Effect B,Participant Effect C,Participant Effect D,Participant Effect E,Participant Effect F\n';
+    
+    // Export title (stored in Team Name column)
+    csv += `Title,,${pageTitle || ''},,,,,,,,,,,,,,,,,,,,,,,\n`;
     
     // Export team data
     Object.entries(teams).forEach(([teamId, team]) => {
@@ -889,7 +930,10 @@ const RadarMissionAnimation = () => {
           const parts = parseCSVLine(line);
           const type = parts[0];
           
-          if (type === 'Participant') {
+          if (type === 'Title') {
+            const incomingTitle = parts[2] || '';
+            if (incomingTitle) setPageTitle(incomingTitle);
+          } else if (type === 'Participant') {
             const teamId = parts[1];
             const teamName = parts[2];
             // Handle both old format (no team score) and new format (with team score)
@@ -1032,310 +1076,388 @@ const RadarMissionAnimation = () => {
     return calculateOverlapPercentage(bluePolygon, redPolygon);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions]);
-  
+
+  // Team colors - 4 distinct colors that differ from radar chart colors (blue/red)
+  const teamColors = {
+    team1: '#FFD700', // Gold/Yellow
+    team2: '#00FF00', // Bright Green
+    team3: '#FF8C00', // Dark Orange
+    team4: '#9370DB'  // Medium Purple
+  };
+
+  // Get highest and lowest scoring teams
+  const getTeamScores = () => {
+    return Object.entries(teams).map(([teamId, team]) => ({
+      teamId,
+      score: team.score || 0
+    }));
+  };
+
+  const teamScores = getTeamScores();
+  const sortedScores = [...teamScores].sort((a, b) => b.score - a.score);
+  const highestScore = sortedScores[0]?.score;
+  const lowestScore = sortedScores[sortedScores.length - 1]?.score;
+  const highestTeams = sortedScores.filter(t => t.score === highestScore && highestScore !== lowestScore).map(t => t.teamId);
+  const lowestTeams = sortedScores.filter(t => t.score === lowestScore && highestScore !== lowestScore).map(t => t.teamId);
+
+  // Calculate color based on probability percentage
+  const getProbabilityColor = (percentage) => {
+    if (percentage < 25) {
+      // Red to orange transition (0-25%)
+      const ratio = percentage / 25;
+      const r = 239; // Red
+      const g = Math.round(68 + (119 - 68) * ratio); // 68 to 119
+      const b = 68;
+      return `rgb(${r}, ${g}, ${b})`;
+    } else if (percentage < 50) {
+      // Orange to yellow transition (25-50%)
+      const ratio = (percentage - 25) / 25;
+      const r = 239; // Orange
+      const g = Math.round(119 + (217 - 119) * ratio); // 119 to 217
+      const b = 68;
+      return `rgb(${r}, ${g}, ${b})`;
+    } else if (percentage < 75) {
+      // Yellow-green transition (50-75%)
+      const ratio = (percentage - 50) / 25;
+      const r = Math.round(217 - (34 - 217) * ratio); // 217 to 34
+      const g = 217;
+      const b = Math.round(68 + (197 - 68) * ratio); // 68 to 197
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      // Green (75%+)
+      return 'rgb(34, 197, 94)';
+    }
+  };
+
   return (
-    <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
-      <div className="bg-white rounded-lg shadow-lg p-6" style={{ maxWidth: '1800px', width: '100%' }}>
-        
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <canvas 
-              ref={canvasRef} 
-              width={800} 
-              height={800}
-              className="border border-gray-300 rounded"
-              style={{ display: 'block' }}
+    <div className="w-full h-screen bg-gray-900 p-1" style={{ fontSize: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* 3-Column Layout */}
+      <div style={{ flex: 1, display: 'flex', gap: '4px', minHeight: 0, overflow: 'hidden' }}>
+        {/* Left Column - Mission, Modifiers, Selected Individuals */}
+        <div className="bg-gray-800 border border-gray-600 rounded p-1" style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' }}>
+          {/* Mission */}
+          <div className="bg-purple-900 border border-purple-700 rounded p-1 flex-shrink-0">
+            <div className="font-semibold text-purple-200 mb-0.5" style={{ fontSize: '10px' }}>Mission</div>
+            <select
+              value={currentMissionId}
+              onChange={(e) => setCurrentMissionId(e.target.value)}
+              className="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded px-1 py-0.5"
+              style={{ fontSize: '10px' }}
+            >
+              {Object.entries(missions).map(([id, mission]) => (
+                <option key={id} value={id}>{mission.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Modifiers */}
+          <div className="bg-green-900 border border-green-700 rounded p-1 flex-shrink-0">
+            <div className="font-semibold text-green-200 mb-0.5" style={{ fontSize: '10px' }}>Modifiers</div>
+            <select
+              multiple
+              value={selectedModifierIds}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, option => option.value);
+                setSelectedModifierIds(selected);
+              }}
+              className="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded px-1 py-0.5"
+              style={{ fontSize: '10px', minHeight: '60px', maxHeight: '60px' }}
+            >
+              {Object.entries(modifiers).map(([modifierId, modifier]) => (
+                <option key={modifierId} value={modifierId}>{modifier.name}</option>
+              ))}
+            </select>
+            <div className="text-gray-300 mt-0.5" style={{ fontSize: '9px' }}>
+              {selectedModifierIds.length}/{Object.keys(modifiers).length}
+            </div>
+          </div>
+
+          {/* Selected Individuals - 2 players per row, 2 rows */}
+          <div className="bg-orange-900 border border-orange-700 rounded p-1 flex-1 flex flex-col" style={{ minHeight: 0 }}>
+            <div className="font-semibold text-orange-200 mb-0.5" style={{ fontSize: '10px' }}>Selected Individuals</div>
+            <div className="flex-1 overflow-y-auto border border-gray-600 rounded bg-gray-800 p-0.5">
+              {allIndividuals.length === 0 ? (
+                <div className="text-gray-400 text-center py-1" style={{ fontSize: '9px' }}>None</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', rowGap: '2px' }}>
+                  {Object.entries(teams).map(([teamId, team]) => 
+                    Object.entries(team.participants).map(([participantId, participant]) => (
+                      <label
+                        key={participantId}
+                        className="flex items-center gap-0.5 p-0.5 hover:bg-gray-700 rounded cursor-pointer"
+                        style={{ fontSize: '8px' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIndividualIds.includes(participantId)}
+                          onChange={() => toggleIndividualSelection(participantId)}
+                          className="cursor-pointer"
+                          style={{ width: '8px', height: '8px', flexShrink: 0 }}
+                        />
+                        <span className="text-gray-100 truncate" style={{ fontSize: '8px' }}>{participant.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="text-gray-300 mt-0.5" style={{ fontSize: '9px' }}>
+              {selectedIndividualIds.length}/{allIndividuals.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Column - Title, Team Scores, Probability, Radar Chart */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, overflow: 'hidden' }}>
+          {/* Title */}
+          <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+            <input
+              type="text"
+              value={pageTitle}
+              onChange={(e) => setPageTitle(e.target.value)}
+              className="bg-gray-800 text-gray-100 border border-gray-600 rounded px-2 py-0.5"
+              style={{ fontSize: '28px', width: '100%', maxWidth: '500px', textAlign: 'center', fontWeight: 'bold' }}
             />
           </div>
-          
-          <div style={{ flexShrink: 0, width: '20rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <h4 className="font-semibold text-gray-800 mb-3">Polygon Visibility</h4>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+
+          {/* Team Scores Row - All in one row */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', flexShrink: 0, flexWrap: 'nowrap' }}>
+            {Object.entries(teams).map(([teamId, team]) => {
+              const isHighest = highestTeams.includes(teamId);
+              const isLowest = lowestTeams.includes(teamId);
+              const teamColor = teamColors[teamId] || '#ffffff';
+              return (
+                <div key={teamId} className="flex items-center gap-0.5 bg-gray-800 border border-gray-600 rounded px-1 py-0.5">
+                  <span className="font-bold" style={{ fontSize: '10px', minWidth: '35px', color: teamColor }}>
+                    {isHighest && '👑 '}
+                    {isLowest && '💩 '}
+                    {team.name}:
+                  </span>
+                  <button
+                    onClick={() => updateTeamScore(teamId, (team.score || 0) - 1)}
+                    className="bg-red-900 text-red-200 rounded hover:bg-red-800"
+                    style={{ fontSize: '8px', padding: '1px 2px', lineHeight: '1' }}
+                  >
+                    <Minus size={8} />
+                  </button>
                   <input
-                    type="checkbox"
-                    checked={showMissionPolygon}
-                    onChange={(e) => setShowMissionPolygon(e.target.checked)}
-                    className="cursor-pointer"
+                    type="number"
+                    value={team.score || 0}
+                    onChange={(e) => updateTeamScore(teamId, e.target.value)}
+                    className="text-center bg-gray-700 text-gray-100 border border-gray-600 rounded"
+                    style={{ fontSize: '9px', width: '24px', padding: '1px', height: '16px' }}
                   />
-                  <span className="text-sm">Show Mission</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showTeamPolygon}
-                    onChange={(e) => setShowTeamPolygon(e.target.checked)}
-                    className="cursor-pointer"
-                  />
-                  <span className="text-sm">Show Team</span>
-                </label>
-              </div>
+                  <button
+                    onClick={() => updateTeamScore(teamId, (team.score || 0) + 1)}
+                    className="bg-green-900 text-green-200 rounded hover:bg-green-800"
+                    style={{ fontSize: '8px', padding: '1px 2px', lineHeight: '1' }}
+                  >
+                    <Plus size={8} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mission Success Probability + Polygon Visibility */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexShrink: 0 }}>
+            <div 
+              className="font-bold px-2 py-0.5 rounded"
+              style={{ 
+                fontSize: '18px',
+                color: getProbabilityColor(overlapPercentage),
+                backgroundColor: 'rgba(0,0,0,0.3)'
+              }}
+            >
+              Mission Success Probability: <span style={{ fontSize: '24px', fontWeight: 'bold' }}>{overlapPercentage.toFixed(1)}%</span>
             </div>
-            
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2" style={{ fontSize: '9px' }}>
+              <label className="flex items-center gap-0.5 cursor-pointer text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={showMissionPolygon}
+                  onChange={(e) => setShowMissionPolygon(e.target.checked)}
+                  className="cursor-pointer"
+                  style={{ width: '10px', height: '10px' }}
+                />
+                <span>Show Mission</span>
+              </label>
+              <label className="flex items-center gap-0.5 cursor-pointer text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={showTeamPolygon}
+                  onChange={(e) => setShowTeamPolygon(e.target.checked)}
+                  className="cursor-pointer"
+                  style={{ width: '10px', height: '10px' }}
+                />
+                <span>Show Team</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Radar Chart */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+            <div style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}>
+              <canvas 
+                ref={canvasRef} 
+                width={500} 
+                height={500}
+                className="border border-gray-600 rounded"
+                style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', display: 'block' }}
+              />
               <button
                 onClick={startAnimation}
                 disabled={isAnimating || !showMissionPolygon || !showTeamPolygon}
-                className="flex-1 bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold"
+                className="bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '20px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
                 <Play size={20} />
                 Start
               </button>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                <div className="mb-2">
-                  <h4 className="font-semibold text-purple-800">Mission</h4>
+              {isAnimating && (
+                <div className="bg-yellow-900 text-yellow-100 rounded" style={{ position: 'absolute', top: '4px', left: '4px', fontSize: '9px', padding: '2px 4px' }}>
+                  {(animationTime / 1000).toFixed(1)}s / {ANIMATION_DURATION / 1000}s
                 </div>
-                <select
-                  value={currentMissionId}
-                  onChange={(e) => setCurrentMissionId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
-                  title={missions[currentMissionId]?.name}
-                >
-                  {Object.entries(missions).map(([id, mission]) => (
-                    <option key={id} value={id}>{mission.name}</option>
-                  ))}
-                </select>
-                
-                {showMissionPolygon && showTeamPolygon && (
-                  <div className="mt-3 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-red-500 rounded" style={{ opacity: 0.7 }}></div>
-                      <div className="w-4 h-4 bg-blue-500 rounded" style={{ opacity: 0.7, marginLeft: '-8px' }}></div>
-                      <h4 className="font-semibold text-indigo-800 text-sm">Mission Success Probability: {overlapPercentage.toFixed(1)}%</h4>
-                    </div>
-                  </div>
-                )}
-                
-                <div className={`mt-3 bg-yellow-50 p-3 rounded-lg border border-yellow-200 ${isAnimating ? '' : 'invisible'}`}>
-                  <div className="text-sm font-semibold"> 
-                    {(animationTime / 1000).toFixed(1)}s / {ANIMATION_DURATION / 1000}s
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                <div className="mb-2">
-                  <h4 className="font-semibold text-green-800">Modifiers</h4>
-                </div>
-                <div style={{ overflowX: 'auto', overflowY: 'visible', width: '100%' }}>
-                  <select
-                    multiple
-                    value={selectedModifierIds}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, option => option.value);
-                      setSelectedModifierIds(selected);
-                    }}
-                    className="px-3 py-2 border rounded-lg"
-                    style={{ minHeight: '100px', minWidth: '100%', whiteSpace: 'nowrap' }}
-                  >
-                    {Object.entries(modifiers).map(([modifierId, modifier]) => (
-                      <option key={modifierId} value={modifierId}>
-                        {modifier.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="text-xs text-gray-600 mt-1">
-                  {selectedModifierIds.length} of {Object.keys(modifiers).length} selected (hold Ctrl/Cmd to select multiple)
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                <h4 className="font-semibold text-orange-800">Selected Individuals</h4>
-                <>
-                  <div className="max-h-48 overflow-y-auto border rounded-lg bg-white p-2 mb-2">
-                    {allIndividuals.length === 0 ? (
-                      <div className="text-xs text-gray-500 text-center py-2">No individuals available</div>
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        {Object.entries(teams).map(([teamId, team]) => (
-                          <div key={teamId} className="border-b border-gray-200 pb-2 mb-2 last:border-b-0 last:pb-0 last:mb-0">
-                            <div className="font-semibold text-sm text-gray-700 mb-1">{team.name}</div>
-                            {Object.entries(team.participants).map(([participantId, participant]) => (
-                              // to ensure each participant is rendered on a new line
-                              <div>
-                              <label
-                                key={participantId}
-                                className="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedIndividualIds.includes(participantId)}
-                                  onChange={() => toggleIndividualSelection(participantId)}
-                                  className="cursor-pointer"
-                                />
-                                  {participant.name}
-                              </label>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    {selectedIndividualIds.length} of {allIndividuals.length} selected
-                  </div>
-                </>
+              )}
             </div>
           </div>
-          
-          <div style={{ flexShrink: 0, width: '20rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <h4 className="font-semibold text-gray-800">Team Manager</h4>
-              </div>
-              
-              <div className="mb-3">
-                
-                {Object.entries(teams).map(([teamId, team]) => (
-                  <div key={teamId} className="mb-4 p-3 bg-white rounded border">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1 flex items-center gap-2">
+
+          {/* CSV Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', flexShrink: 0 }}>
+            <button
+              onClick={exportToCSV}
+              className="bg-green-600 text-white px-2 py-0.5 rounded hover:bg-green-700 flex items-center gap-0.5"
+              style={{ fontSize: '9px' }}
+            >
+              <Download size={10} />
+              Export CSV
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-purple-600 text-white px-2 py-0.5 rounded hover:bg-purple-700 flex items-center gap-0.5"
+              style={{ fontSize: '9px' }}
+            >
+              <Upload size={10} />
+              Import CSV
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={importFromCSV}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {/* Right Column - Team Manager */}
+        <div className="bg-gray-800 border border-gray-600 rounded p-1" style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
+            {Object.entries(teams).map(([teamId, team]) => {
+              const isEditing = editingTeams.has(teamId);
+              const teamColor = teamColors[teamId] || '#ffffff';
+              return (
+                <div key={teamId} className="mb-1 p-1 bg-gray-700 rounded border border-gray-600">
+                  <div className="flex items-center gap-0.5 mb-0.5">
+                    {isEditing ? (
+                      <>
                         <input
                           type="text"
                           value={team.name}
                           onChange={(e) => updateTeamName(teamId, e.target.value)}
-                          className="flex-1 px-2 py-1 border rounded text-sm font-medium"
-                          placeholder="Team Name"
+                          onBlur={() => toggleTeamEdit(teamId)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') toggleTeamEdit(teamId);
+                          }}
+                          autoFocus
+                          className="flex-1 bg-gray-800 border border-gray-600 rounded px-0.5 py-0"
+                          style={{ fontSize: '11px', fontWeight: 'bold', color: teamColor }}
                         />
                         <button
-                          onClick={() => addParticipant(teamId)}
-                          className="bg-green-500 text-white p-1 rounded hover:bg-green-600 flex items-center justify-center"
-                          title="Add Participant"
+                          onClick={() => toggleTeamEdit(teamId)}
+                          className="bg-blue-900 text-blue-200 px-0.5 py-0 rounded hover:bg-blue-800"
+                          style={{ fontSize: '8px' }}
                         >
-                          <Plus size={16} />
+                          ✓
                         </button>
-                        <div className="flex items-center gap-1">
-                          <label className="text-xs font-medium text-gray-700">Score:</label>
-                          <button
-                            onClick={() => updateTeamScore(teamId, (team.score || 0) - 1)}
-                            className="bg-red-100 text-red-600 p-1 rounded hover:bg-red-200"
-                          >
-                            <Minus size={12} />
-                          </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 font-bold" style={{ fontSize: '11px', color: teamColor }}>{team.name}</span>
+                        <button
+                          onClick={() => toggleTeamEdit(teamId)}
+                          className="bg-gray-600 text-gray-200 px-0.5 py-0 rounded hover:bg-gray-500"
+                          style={{ fontSize: '8px' }}
+                        >
+                          ✎
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {Object.entries(team.participants).map(([pId, participant]) => {
+                    const isExpanded = expandedParticipants.has(pId);
+                    return (
+                      <div key={pId} className="mb-0.5 p-0.5 bg-gray-800 rounded border border-gray-600">
+                        <div className="flex items-center gap-0.5">
                           <input
-                            type="number"
-                            value={team.score || 0}
-                            onChange={(e) => updateTeamScore(teamId, e.target.value)}
-                            className="w-16 px-2 py-1 border rounded text-sm text-center"
-                            step="1"
+                            type="text"
+                            value={participant.name}
+                            onChange={(e) => updateParticipantName(teamId, pId, e.target.value)}
+                            className="flex-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-0.5 py-0"
+                            style={{ fontSize: '7px', width: '100%' }}
                           />
                           <button
-                            onClick={() => updateTeamScore(teamId, (team.score || 0) + 1)}
-                            className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200"
+                            onClick={() => toggleParticipantStats(pId)}
+                            className="text-gray-300 hover:text-gray-100 px-0 py-0 rounded hover:bg-gray-600"
+                            title={isExpanded ? "Hide stats" : "Show stats"}
+                            style={{ fontSize: '8px' }}
                           >
-                            <Plus size={12} />
+                            {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                           </button>
                         </div>
-                      </div>
-                    </div>
-                    
-                    {Object.entries(team.participants).map(([pId, participant]) => {
-                      const isExpanded = expandedParticipants.has(pId);
-                      return (
-                        <div key={pId} className="mb-2 p-2 bg-gray-50 rounded border">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={participant.name}
-                              onChange={(e) => updateParticipantName(teamId, pId, e.target.value)}
-                              className="flex-1 px-2 py-1 border rounded text-sm font-medium"
-                            />
-                            <button
-                              onClick={() => toggleParticipantStats(pId)}
-                              className="text-gray-600 hover:text-gray-800 p-1 rounded hover:bg-gray-200 flex-shrink-0"
-                              title={isExpanded ? "Hide stats" : "Show stats"}
-                            >
-                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                            </button>
-                            <button
-                              onClick={() => removeParticipant(teamId, pId)}
-                              className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 flex-shrink-0"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                          
-                          {isExpanded && (
-                            <div className="mt-2 pt-2 border-t border-gray-300">
-                              {labels.map((label, statIndex) => (
-                                <div key={statIndex} className="flex items-center justify-between mb-1">
-                                  <span className="text-xs w-16">{label}</span>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => updateParticipantStat(teamId, pId, statIndex, -1)}
-                                      className="bg-red-100 text-red-600 p-1 rounded hover:bg-red-200"
-                                    >
-                                      <Minus size={12} />
-                                    </button>
-                                    <span className="text-xs font-semibold w-8 text-center">
-                                      {participant.stats[statIndex]}
-                                    </span>
-                                    <button
-                                      onClick={() => updateParticipantStat(teamId, pId, statIndex, 1)}
-                                      className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200"
-                                    >
-                                      <Plus size={12} />
-                                    </button>
-                                  </div>
+                        {isExpanded && (
+                          <div className="mt-0.5 pt-0.5 border-t border-gray-600">
+                            {labels.map((label, statIndex) => (
+                              <div key={statIndex} className="flex items-center justify-between mb-0.5">
+                                <span className="text-gray-300 w-10" style={{ fontSize: '8px' }}>{label}</span>
+                                <div className="flex items-center gap-0.5">
+                                  <button
+                                    onClick={() => updateParticipantStat(teamId, pId, statIndex, -1)}
+                                    className="bg-red-900 text-red-200 px-0.5 py-0 rounded hover:bg-red-800"
+                                    style={{ fontSize: '8px' }}
+                                  >
+                                    <Minus size={8} />
+                                  </button>
+                                  <span className="font-semibold text-gray-100 w-5 text-center" style={{ fontSize: '9px' }}>
+                                    {participant.stats[statIndex]}
+                                  </span>
+                                  <button
+                                    onClick={() => updateParticipantStat(teamId, pId, statIndex, 1)}
+                                    className="bg-green-900 text-green-200 px-0.5 py-0 rounded hover:bg-green-800"
+                                    style={{ fontSize: '8px' }}
+                                  >
+                                    <Plus size={8} />
+                                  </button>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-              
-              <button
-                onClick={addTeam}
-                className="w-full bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 text-sm"
-              >
-                + Add New Team
-              </button>
-            </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
+          <button
+            onClick={addTeam}
+            className="w-full bg-blue-900 text-blue-200 px-1 py-0.5 rounded hover:bg-blue-800 mt-1 flex-shrink-0"
+            style={{ fontSize: '9px' }}
+          >
+            + Add Team
+          </button>
         </div>
-      </div>
-      
-      <div className="mt-4 text-sm text-gray-600 text-center max-w-2xl">
-        <p><strong>How it works:</strong> Select a mission and choose individuals from any team, then click "Start". The ball bounces like a billiard ball for 5 seconds. 
-        If it lands within the selected individuals' total stats (sum of all selected participants), the mission passes!</p>
-        <p className="mt-2"><strong>Tip:</strong> Use the Team Manager (user icon) to add teams, participants and adjust individual stats. Select multiple individuals from different teams to form your group. Export your data to CSV or import from a previously exported file.</p>
-      </div>
-      
-      <div className="mt-4 flex gap-2 justify-center max-w-md mx-auto">
-        <button
-          onClick={exportToCSV}
-          className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center justify-center gap-2 text-sm"
-        >
-          <Download size={16} />
-          Export CSV
-        </button>
-        
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 flex items-center justify-center gap-2 text-sm"
-        >
-          <Upload size={16} />
-          Import CSV
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          onChange={importFromCSV}
-          className="hidden"
-        />
       </div>
     </div>
   );
