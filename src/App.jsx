@@ -1,5 +1,82 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, RotateCcw, Users, Target, Plus, Minus, Trash2, Download, Upload, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+
+// Participant row component with dropdown
+const ParticipantRow = ({ teamId, pId, participant, isExpanded, onToggle, onNameChange, onStatChange, labels }) => {
+  const buttonRef = useRef(null);
+  const dropdownRef = useRef(null);
+  
+  useEffect(() => {
+    if (isExpanded && buttonRef.current && dropdownRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      dropdownRef.current.style.left = `${buttonRect.right + 4}px`;
+      dropdownRef.current.style.top = `${buttonRect.top}px`;
+    }
+  }, [isExpanded]);
+  
+  return (
+    <div className="mb-0.5" style={{ position: 'relative' }}>
+      <div className="p-0.5 bg-gray-800 rounded border border-gray-600 flex items-center gap-0.5" style={{ position: 'relative', zIndex: isExpanded ? 2 : 1 }}>
+        <input
+          type="text"
+          value={participant.name}
+          onChange={(e) => onNameChange(teamId, pId, e.target.value)}
+          className="flex-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-0.5 py-0"
+          style={{ fontSize: '7px' }}
+        />
+        <button
+          ref={buttonRef}
+          onClick={onToggle}
+          className="text-gray-300 hover:text-gray-100 px-0 py-0 rounded hover:bg-gray-600 flex-shrink-0"
+          title={isExpanded ? "Hide stats" : "Show stats"}
+          style={{ fontSize: '8px' }}
+        >
+          {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+        </button>
+      </div>
+      {isExpanded && createPortal(
+        <div 
+          ref={dropdownRef}
+          className="bg-gray-700 border border-gray-600 rounded p-0.5 shadow-lg"
+          style={{ 
+            position: 'fixed',
+            zIndex: 10000,
+            minWidth: '120px',
+            fontSize: '8px',
+            pointerEvents: 'auto'
+          }}
+        >
+          {labels.map((label, statIndex) => (
+            <div key={statIndex} className="flex items-center justify-between mb-0.5">
+              <span className="text-gray-300" style={{ fontSize: '8px', minWidth: '40px' }}>{label}</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => onStatChange(teamId, pId, statIndex, -1)}
+                  className="bg-red-900 text-red-200 px-0.5 py-0 rounded hover:bg-red-800"
+                  style={{ fontSize: '8px' }}
+                >
+                  <Minus size={8} />
+                </button>
+                <span className="font-semibold text-gray-100 w-5 text-center" style={{ fontSize: '9px' }}>
+                  {participant.stats[statIndex]}
+                </span>
+                <button
+                  onClick={() => onStatChange(teamId, pId, statIndex, 1)}
+                  className="bg-green-900 text-green-200 px-0.5 py-0 rounded hover:bg-green-800"
+                  style={{ fontSize: '8px' }}
+                >
+                  <Plus size={8} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 const RadarMissionAnimation = () => {
   const canvasRef = useRef(null);
@@ -250,6 +327,33 @@ const RadarMissionAnimation = () => {
     return individuals;
   };
   
+  // Get team color based on selected players
+  // Team 1: p1-p4, Team 2: p5-p8, Team 3: p9-p12, Team 4: p13-p16
+  const getTeamColorForSelectedPlayers = () => {
+    if (!selectedIndividualIds || selectedIndividualIds.length === 0) {
+      return '#E74C3C'; // Default red
+    }
+    
+    // Check which team the selected players belong to
+    const selectedTeamIds = new Set();
+    selectedIndividualIds.forEach(participantId => {
+      Object.entries(teams).forEach(([teamId, team]) => {
+        if (team.participants[participantId]) {
+          selectedTeamIds.add(teamId);
+        }
+      });
+    });
+    
+    // If all selected players are from the same team, use that team's color
+    if (selectedTeamIds.size === 1) {
+      const teamId = Array.from(selectedTeamIds)[0];
+      return teamColors[teamId] || '#E74C3C';
+    }
+    
+    // If multiple teams selected, use default red
+    return '#E74C3C';
+  };
+
   // Calculate total stats from selected individuals (sum of all selected participants) with modifiers applied
   const getSelectedIndividualsTotalStats = () => {
     if (!selectedIndividualIds || selectedIndividualIds.length === 0) {
@@ -492,12 +596,12 @@ const RadarMissionAnimation = () => {
       }
     });
     
-    // Draw mission polygon (blue) - only if enabled
+    // Draw mission polygon (pale white/grey) - only if enabled
     if (showMissionPolygon) {
       const missionPoints = getPolygonPoints(getCurrentMissionStats());
       ctx.beginPath();
-      ctx.strokeStyle = '#4A90E2';
-      ctx.fillStyle = 'rgba(74, 144, 226, 0.2)';
+      ctx.strokeStyle = '#D1D5DB'; // Pale grey
+      ctx.fillStyle = 'rgba(209, 213, 219, 0.2)'; // Pale grey with transparency
       ctx.lineWidth = 3;
       missionPoints.forEach((point, i) => {
         if (i === 0) ctx.moveTo(point.x, point.y);
@@ -508,12 +612,17 @@ const RadarMissionAnimation = () => {
       ctx.stroke();
     }
     
-    // Draw selected individuals polygon (red dashed) - only if enabled
+    // Draw selected individuals polygon (team color dashed) - only if enabled
     if (showTeamPolygon) {
       const selectedIndividualsPoints = getPolygonPoints(getSelectedIndividualsTotalStats());
+      const teamColor = getTeamColorForSelectedPlayers();
+      // Convert hex to rgba for fill
+      const r = parseInt(teamColor.slice(1, 3), 16);
+      const g = parseInt(teamColor.slice(3, 5), 16);
+      const b = parseInt(teamColor.slice(5, 7), 16);
       ctx.beginPath();
-      ctx.strokeStyle = '#E74C3C';
-      ctx.fillStyle = 'rgba(231, 76, 60, 0.2)';
+      ctx.strokeStyle = teamColor;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.2)`;
       ctx.lineWidth = 3;
       ctx.setLineDash([8, 8]);
       selectedIndividualsPoints.forEach((point, i) => {
@@ -1077,12 +1186,12 @@ const RadarMissionAnimation = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions]);
 
-  // Team colors - 4 distinct colors that differ from radar chart colors (blue/red)
+  // Team colors - 4 distinct colors that are visible from a distance
   const teamColors = {
-    team1: '#FFD700', // Gold/Yellow
-    team2: '#00FF00', // Bright Green
-    team3: '#FF8C00', // Dark Orange
-    team4: '#9370DB'  // Medium Purple
+    team1: '#3B82F6', // Blue
+    team2: '#EF4444', // Red
+    team3: '#10B981', // Green
+    team4: '#8B5CF6'  // Purple
   };
 
   // Get highest and lowest scoring teams
@@ -1172,32 +1281,39 @@ const RadarMissionAnimation = () => {
             </div>
           </div>
 
-          {/* Selected Individuals - 2 players per row, 2 rows */}
+          {/* Selected Individuals - Grouped by team, 2 columns */}
           <div className="bg-orange-900 border border-orange-700 rounded p-1 flex-1 flex flex-col" style={{ minHeight: 0 }}>
             <div className="font-semibold text-orange-200 mb-0.5" style={{ fontSize: '10px' }}>Selected Individuals</div>
             <div className="flex-1 overflow-y-auto border border-gray-600 rounded bg-gray-800 p-0.5">
               {allIndividuals.length === 0 ? (
                 <div className="text-gray-400 text-center py-1" style={{ fontSize: '9px' }}>None</div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', rowGap: '2px' }}>
-                  {Object.entries(teams).map(([teamId, team]) => 
-                    Object.entries(team.participants).map(([participantId, participant]) => (
-                      <label
-                        key={participantId}
-                        className="flex items-center gap-0.5 p-0.5 hover:bg-gray-700 rounded cursor-pointer"
-                        style={{ fontSize: '8px' }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedIndividualIds.includes(participantId)}
-                          onChange={() => toggleIndividualSelection(participantId)}
-                          className="cursor-pointer"
-                          style={{ width: '8px', height: '8px', flexShrink: 0 }}
-                        />
-                        <span className="text-gray-100 truncate" style={{ fontSize: '8px' }}>{participant.name}</span>
-                      </label>
-                    ))
-                  )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {Object.entries(teams).map(([teamId, team]) => {
+                    const teamColor = teamColors[teamId] || '#ffffff';
+                    return (
+                      <div key={teamId} style={{ border: `2px solid ${teamColor}`, borderRadius: '4px', padding: '2px', backgroundColor: `${teamColor}20` }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', rowGap: '2px' }}>
+                          {Object.entries(team.participants).map(([participantId, participant]) => (
+                            <label
+                              key={participantId}
+                              className="flex items-center gap-0.5 p-0.5 hover:bg-gray-700 rounded cursor-pointer"
+                              style={{ fontSize: '8px', backgroundColor: selectedIndividualIds.includes(participantId) ? `${teamColor}40` : 'transparent' }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedIndividualIds.includes(participantId)}
+                                onChange={() => toggleIndividualSelection(participantId)}
+                                className="cursor-pointer"
+                                style={{ width: '8px', height: '8px', flexShrink: 0 }}
+                              />
+                              <span className="text-gray-100 truncate" style={{ fontSize: '8px' }}>{participant.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1220,8 +1336,8 @@ const RadarMissionAnimation = () => {
             />
           </div>
 
-          {/* Team Scores Row - All in one row */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', flexShrink: 0, flexWrap: 'nowrap' }}>
+          {/* Team Scores Row - All in one row with bigger gaps */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexShrink: 0, flexWrap: 'nowrap' }}>
             {Object.entries(teams).map(([teamId, team]) => {
               const isHighest = highestTeams.includes(teamId);
               const isLowest = lowestTeams.includes(teamId);
@@ -1259,18 +1375,8 @@ const RadarMissionAnimation = () => {
             })}
           </div>
 
-          {/* Mission Success Probability + Polygon Visibility */}
+          {/* Polygon Visibility - Between Team Points and Mission Success */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexShrink: 0 }}>
-            <div 
-              className="font-bold px-2 py-0.5 rounded"
-              style={{ 
-                fontSize: '18px',
-                color: getProbabilityColor(overlapPercentage),
-                backgroundColor: 'rgba(0,0,0,0.3)'
-              }}
-            >
-              Mission Success Probability: <span style={{ fontSize: '24px', fontWeight: 'bold' }}>{overlapPercentage.toFixed(1)}%</span>
-            </div>
             <div className="flex items-center gap-2" style={{ fontSize: '9px' }}>
               <label className="flex items-center gap-0.5 cursor-pointer text-gray-300">
                 <input
@@ -1292,6 +1398,20 @@ const RadarMissionAnimation = () => {
                 />
                 <span>Show Team</span>
               </label>
+            </div>
+          </div>
+
+          {/* Mission Success Probability */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexShrink: 0 }}>
+            <div 
+              className="font-bold px-2 py-0.5 rounded"
+              style={{ 
+                fontSize: '18px',
+                color: getProbabilityColor(overlapPercentage),
+                backgroundColor: 'rgba(0,0,0,0.3)'
+              }}
+            >
+              Mission Success Probability: <span style={{ fontSize: '24px', fontWeight: 'bold' }}>{overlapPercentage.toFixed(1)}%</span>
             </div>
           </div>
 
@@ -1351,7 +1471,7 @@ const RadarMissionAnimation = () => {
         </div>
 
         {/* Right Column - Team Manager */}
-        <div className="bg-gray-800 border border-gray-600 rounded p-1" style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="bg-gray-800 border border-gray-600 rounded p-1" style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
           <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
             {Object.entries(teams).map(([teamId, team]) => {
               const isEditing = editingTeams.has(teamId);
@@ -1394,58 +1514,19 @@ const RadarMissionAnimation = () => {
                       </>
                     )}
                   </div>
-                  {Object.entries(team.participants).map(([pId, participant]) => {
-                    const isExpanded = expandedParticipants.has(pId);
-                    return (
-                      <div key={pId} className="mb-0.5 p-0.5 bg-gray-800 rounded border border-gray-600">
-                        <div className="flex items-center gap-0.5">
-                          <input
-                            type="text"
-                            value={participant.name}
-                            onChange={(e) => updateParticipantName(teamId, pId, e.target.value)}
-                            className="flex-1 bg-gray-700 text-gray-100 border border-gray-600 rounded px-0.5 py-0"
-                            style={{ fontSize: '7px', width: '100%' }}
-                          />
-                          <button
-                            onClick={() => toggleParticipantStats(pId)}
-                            className="text-gray-300 hover:text-gray-100 px-0 py-0 rounded hover:bg-gray-600"
-                            title={isExpanded ? "Hide stats" : "Show stats"}
-                            style={{ fontSize: '8px' }}
-                          >
-                            {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                          </button>
-                        </div>
-                        {isExpanded && (
-                          <div className="mt-0.5 pt-0.5 border-t border-gray-600">
-                            {labels.map((label, statIndex) => (
-                              <div key={statIndex} className="flex items-center justify-between mb-0.5">
-                                <span className="text-gray-300 w-10" style={{ fontSize: '8px' }}>{label}</span>
-                                <div className="flex items-center gap-0.5">
-                                  <button
-                                    onClick={() => updateParticipantStat(teamId, pId, statIndex, -1)}
-                                    className="bg-red-900 text-red-200 px-0.5 py-0 rounded hover:bg-red-800"
-                                    style={{ fontSize: '8px' }}
-                                  >
-                                    <Minus size={8} />
-                                  </button>
-                                  <span className="font-semibold text-gray-100 w-5 text-center" style={{ fontSize: '9px' }}>
-                                    {participant.stats[statIndex]}
-                                  </span>
-                                  <button
-                                    onClick={() => updateParticipantStat(teamId, pId, statIndex, 1)}
-                                    className="bg-green-900 text-green-200 px-0.5 py-0 rounded hover:bg-green-800"
-                                    style={{ fontSize: '8px' }}
-                                  >
-                                    <Plus size={8} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {Object.entries(team.participants).map(([pId, participant]) => (
+                    <ParticipantRow
+                      key={pId}
+                      teamId={teamId}
+                      pId={pId}
+                      participant={participant}
+                      isExpanded={expandedParticipants.has(pId)}
+                      onToggle={() => toggleParticipantStats(pId)}
+                      onNameChange={updateParticipantName}
+                      onStatChange={updateParticipantStat}
+                      labels={labels}
+                    />
+                  ))}
                 </div>
               );
             })}
