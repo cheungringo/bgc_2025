@@ -87,10 +87,10 @@ const RadarMissionAnimation = () => {
   
   // Missions state (now dynamic)
   const [missions, setMissions] = useState({
-    alpha: { name: "Mission Alpha", stats: [6, 8, 4, 9, 6, 7] },
-    beta: { name: "Mission Beta", stats: [7, 5, 8, 6, 7, 5] },
-    gamma: { name: "Mission Gamma", stats: [5, 9, 6, 7, 5, 8] },
-    delta: { name: "Mission Delta", stats: [8, 6, 7, 8, 9, 6] }
+    alpha: { name: "Mission Alpha", stats: [6, 8, 4, 9, 6, 7], photoPath: "/photos/photo_a.jpg" },
+    beta: { name: "Mission Beta", stats: [7, 5, 8, 6, 7, 5], photoPath: "/photos/photo_b.jpg" },
+    gamma: { name: "Mission Gamma", stats: [5, 9, 6, 7, 5, 8], photoPath: "/photos/photo_c.jpg" },
+    delta: { name: "Mission Delta", stats: [8, 6, 7, 8, 9, 6], photoPath: "/photos/photo_d.jpg" }
   });
   
   // Current selections
@@ -191,6 +191,7 @@ const RadarMissionAnimation = () => {
   const [showTeamPolygon, setShowTeamPolygon] = useState(true);
   const [expandedParticipants, setExpandedParticipants] = useState(new Set()); // Track which participants have stats expanded
   const [editingTeams, setEditingTeams] = useState(new Set()); // Track which teams are being edited
+  const [photoError, setPhotoError] = useState(false); // Track photo loading errors
   const fileInputRef = useRef(null);
   const audioContextRef = useRef(null);
   
@@ -810,6 +811,11 @@ const RadarMissionAnimation = () => {
       drawRadarChart(ctx);
     }
   }, [currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions, showMissionPolygon, showTeamPolygon]);
+
+  // Reset photo error when mission changes
+  useEffect(() => {
+    setPhotoError(false);
+  }, [currentMissionId]);
   
   const startAnimation = () => {
     // Only start if both polygons are visible
@@ -959,21 +965,21 @@ const RadarMissionAnimation = () => {
   };
   
   const exportToCSV = () => {
-    let csv = 'Type,Team ID,Team Name,Team Score,Participant ID,Participant Name,Stat A,Stat B,Stat C,Stat D,Stat E,Stat F,Modifier ID,Modifier Name,Description,Mission Effect A,Mission Effect B,Mission Effect C,Mission Effect D,Mission Effect E,Mission Effect F,Participant Effect A,Participant Effect B,Participant Effect C,Participant Effect D,Participant Effect E,Participant Effect F\n';
+    let csv = 'Type,Team ID,Team Name,Team Score,Participant ID,Participant Name,Stat A,Stat B,Stat C,Stat D,Stat E,Stat F,Modifier ID,Modifier Name,Description,Mission Effect A,Mission Effect B,Mission Effect C,Mission Effect D,Mission Effect E,Mission Effect F,Participant Effect A,Participant Effect B,Participant Effect C,Participant Effect D,Participant Effect E,Participant Effect F,Photo Path\n';
     
     // Export title (stored in Team Name column)
-    csv += `Title,,${pageTitle || ''},,,,,,,,,,,,,,,,,,,,,,,\n`;
+    csv += `Title,,${pageTitle || ''},,,,,,,,,,,,,,,,,,,,,,,,\n`;
     
     // Export team data
     Object.entries(teams).forEach(([teamId, team]) => {
       Object.entries(team.participants).forEach(([participantId, participant]) => {
-        csv += `Participant,${teamId},${team.name},${team.score || 0},${participantId},${participant.name},${participant.stats.join(',')},,,,,,,,,,,,,,\n`;
+        csv += `Participant,${teamId},${team.name},${team.score || 0},${participantId},${participant.name},${participant.stats.join(',')},,,,,,,,,,,,,,,\n`;
       });
     });
     
     // Export mission data
     Object.entries(missions).forEach(([missionId, mission]) => {
-      csv += `Mission,${missionId},${mission.name},,,,${mission.stats.join(',')},,,,,,,,,,,,,,\n`;
+      csv += `Mission,${missionId},${mission.name},,,,${mission.stats.join(',')},,,,,,,,,,,,,,${mission.photoPath || ''}\n`;
     });
     
     // Export modifier data
@@ -1089,9 +1095,17 @@ const RadarMissionAnimation = () => {
               return isNaN(num) ? 0 : num;
             });
             
+            // Get photo path (last column, if present and not empty)
+            // Check if CSV has photo path column (index 27, after all other columns)
+            const photoPath = parts.length > 27 && parts[27] ? parts[27].trim() : '';
+            
             newMissions[missionId] = {
               name: missionName,
-              stats: stats
+              stats: stats,
+              photoPath: photoPath || (missionId === 'alpha' ? '/photos/photo_a.jpg' : 
+                                      missionId === 'beta' ? '/photos/photo_b.jpg' :
+                                      missionId === 'gamma' ? '/photos/photo_c.jpg' :
+                                      missionId === 'delta' ? '/photos/photo_d.jpg' : `/photos/photo_${missionId}.jpg`)
             };
           } else if (type === 'Modifier' && hasModifiers) {
             const modifierId = parts[12];
@@ -1319,6 +1333,37 @@ const RadarMissionAnimation = () => {
             </div>
             <div className="text-gray-300 mt-0.5" style={{ fontSize: '9px' }}>
               {selectedIndividualIds.length}/{allIndividuals.length}
+            </div>
+          </div>
+
+          {/* Mission Photo Display */}
+          <div className="bg-gray-800 border border-gray-600 rounded p-1 flex-shrink-0" style={{ minHeight: '150px' }}>
+            <div className="font-semibold text-gray-200 mb-0.5" style={{ fontSize: '10px' }}>Mission Photo</div>
+            <div 
+              className="bg-white rounded flex items-center justify-center"
+              style={{ 
+                minHeight: '120px',
+                padding: '8px',
+                border: '3px solid #ffffff',
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.2)'
+              }}
+            >
+              {missions[currentMissionId]?.photoPath && !photoError ? (
+                <img
+                  src={missions[currentMissionId].photoPath}
+                  alt={`${missions[currentMissionId]?.name || 'Mission'} Photo`}
+                  onError={() => setPhotoError(true)}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ display: 'block', maxHeight: '104px' }}
+                />
+              ) : (
+                <div 
+                  className="text-gray-400 text-center"
+                  style={{ fontSize: '9px' }}
+                >
+                  {missions[currentMissionId]?.photoPath ? 'Photo not found' : 'No photo available'}
+                </div>
+              )}
             </div>
           </div>
         </div>
