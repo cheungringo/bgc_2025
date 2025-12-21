@@ -82,7 +82,7 @@ const RadarMissionAnimation = () => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   
-  const [labels] = useState(['Stat A', 'Stat B', 'Stat C', 'Stat D', 'Stat E', 'Stat F']);
+  const [labels, setLabels] = useState(['Stat A', 'Stat B', 'Stat C', 'Stat D', 'Stat E', 'Stat F']);
   const [pageTitle, setPageTitle] = useState('Mission Control');
   
   // Missions state (now dynamic)
@@ -802,7 +802,7 @@ const RadarMissionAnimation = () => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isAnimating, currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions, showMissionPolygon, showTeamPolygon]);
+  }, [isAnimating, currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions, showMissionPolygon, showTeamPolygon, labels]);
   
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -810,7 +810,7 @@ const RadarMissionAnimation = () => {
       const ctx = canvas.getContext('2d');
       drawRadarChart(ctx);
     }
-  }, [currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions, showMissionPolygon, showTeamPolygon]);
+  }, [currentMissionId, selectedIndividualIds, selectedModifierIds, teams, missions, showMissionPolygon, showTeamPolygon, labels]);
 
   // Reset photo error when mission changes
   useEffect(() => {
@@ -878,7 +878,7 @@ const RadarMissionAnimation = () => {
         ...prev[teamId],
         participants: {
           ...prev[teamId].participants,
-          [newId]: { name: `Participant ${Object.keys(prev[teamId].participants).length + 1}`, stats: [0, 0, 0, 0, 0, 0] }
+          [newId]: { name: `Participant ${Object.keys(prev[teamId].participants).length + 1}`, stats: Array(labels.length).fill(0) }
         }
       }
     }));
@@ -903,7 +903,7 @@ const RadarMissionAnimation = () => {
         name: `Team ${Object.keys(prev).length + 1}`,
         score: 0,
         participants: {
-          [newParticipantId]: { name: "Member 1", stats: [0, 0, 0, 0, 0, 0] }
+          [newParticipantId]: { name: "Member 1", stats: Array(labels.length).fill(0) }
         }
       }
     }));
@@ -965,26 +965,40 @@ const RadarMissionAnimation = () => {
   };
   
   const exportToCSV = () => {
-    let csv = 'Type,Team ID,Team Name,Team Score,Participant ID,Participant Name,Stat A,Stat B,Stat C,Stat D,Stat E,Stat F,Modifier ID,Modifier Name,Description,Mission Effect A,Mission Effect B,Mission Effect C,Mission Effect D,Mission Effect E,Mission Effect F,Participant Effect A,Participant Effect B,Participant Effect C,Participant Effect D,Participant Effect E,Participant Effect F,Photo Path\n';
+    // Build header with dynamic stat names
+    const statHeaders = labels.join(',');
+    const missionEffectHeaders = labels.map(label => `Mission Effect ${label}`).join(',');
+    const participantEffectHeaders = labels.map(label => `Participant Effect ${label}`).join(',');
+    let csv = `Type,Team ID,Team Name,Team Score,Participant ID,Participant Name,${statHeaders},Modifier ID,Modifier Name,Description,${missionEffectHeaders},${participantEffectHeaders},Photo Path\n`;
     
     // Export title (stored in Team Name column)
-    csv += `Title,,${pageTitle || ''},,,,,,,,,,,,,,,,,,,,,,,,\n`;
+    // Header has: Type(1) + Team ID(1) + Team Name(1) + Team Score(1) + Participant ID(1) + Participant Name(1) + Stats(labels.length) + Modifier ID(1) + Modifier Name(1) + Description(1) + Mission Effects(labels.length) + Participant Effects(labels.length) + Photo Path(1)
+    // Title row: Title(1) + empty(1) + pageTitle(1) + empty columns for the rest
+    const totalColumns = 1 + 1 + 1 + 1 + 1 + 1 + labels.length + 1 + 1 + 1 + labels.length + labels.length + 1; // 28 total
+    const emptyColumnsAfterTitle = Array(totalColumns - 3).fill('').join(','); // Minus Title, empty, and pageTitle
+    csv += `Title,,${pageTitle || ''},${emptyColumnsAfterTitle}\n`;
     
     // Export team data
     Object.entries(teams).forEach(([teamId, team]) => {
       Object.entries(team.participants).forEach(([participantId, participant]) => {
-        csv += `Participant,${teamId},${team.name},${team.score || 0},${participantId},${participant.name},${participant.stats.join(',')},,,,,,,,,,,,,,,\n`;
+        // Participant row: Type(1) + Team ID(1) + Team Name(1) + Team Score(1) + Participant ID(1) + Participant Name(1) + Stats(labels.length) + empty modifier columns(3 + labels.length*2) + Photo Path(1)
+        const emptyModifierColumns = Array(3 + labels.length * 2).fill('').join(','); // Modifier ID, Name, Description + mission effects + participant effects
+        csv += `Participant,${teamId},${team.name},${team.score || 0},${participantId},${participant.name},${participant.stats.join(',')},${emptyModifierColumns},,\n`;
       });
     });
     
     // Export mission data
     Object.entries(missions).forEach(([missionId, mission]) => {
-      csv += `Mission,${missionId},${mission.name},,,,${mission.stats.join(',')},,,,,,,,,,,,,,${mission.photoPath || ''}\n`;
+      // Mission row: Type(1) + Mission ID(1) + Mission Name(1) + empty(3) + Stats(labels.length) + empty modifier columns(3 + labels.length*2) + Photo Path(1)
+      const emptyModifierColumns = Array(3 + labels.length * 2).fill('').join(',');
+      csv += `Mission,${missionId},${mission.name},,,,${mission.stats.join(',')},${emptyModifierColumns},${mission.photoPath || ''}\n`;
     });
     
     // Export modifier data
     Object.entries(modifiers).forEach(([modifierId, modifier]) => {
-      csv += `Modifier,,,,,,,,,,,${modifierId},${modifier.name},"${modifier.description}",${modifier.missionEffect.join(',')},${modifier.participantEffect.join(',')}\n`;
+      // Modifier row: Type(1) + empty(5) + empty stats(labels.length) + Modifier ID(1) + Modifier Name(1) + Description(1) + Mission Effects(labels.length) + Participant Effects(labels.length) + Photo Path(1)
+      const emptyParticipantColumns = Array(5 + labels.length).fill('').join(','); // Empty columns before modifier data
+      csv += `Modifier,${emptyParticipantColumns},${modifierId},${modifier.name},"${modifier.description}",${modifier.missionEffect.join(',')},${modifier.participantEffect.join(',')},\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -1036,6 +1050,24 @@ const RadarMissionAnimation = () => {
           result.push(current);
           return result;
         };
+        
+        // Extract stat names from header
+        const headerParts = parseCSVLine(header);
+        const statsStartIdx = hasTeamScore ? 6 : 5; // After: Type, Team ID, Team Name, [Team Score], Participant ID, Participant Name
+        const importedStatNames = headerParts.slice(statsStartIdx, statsStartIdx + 6);
+        
+        // Update labels if we found stat columns in the header (use defaults for empty names)
+        if (importedStatNames.length === 6) {
+          const defaultStatNames = ['Stat A', 'Stat B', 'Stat C', 'Stat D', 'Stat E', 'Stat F'];
+          const newLabels = importedStatNames.map((name, index) => {
+            const trimmed = name ? name.trim() : '';
+            return trimmed || defaultStatNames[index];
+          });
+          console.log('Updating labels from CSV:', newLabels);
+          setLabels(newLabels);
+        } else {
+          console.warn('Expected 6 stat columns, found:', importedStatNames.length, importedStatNames);
+        }
         
         // Skip header
         for (let i = 1; i < lines.length; i++) {
@@ -1096,8 +1128,10 @@ const RadarMissionAnimation = () => {
             });
             
             // Get photo path (last column, if present and not empty)
-            // Check if CSV has photo path column (index 27, after all other columns)
-            const photoPath = parts.length > 27 && parts[27] ? parts[27].trim() : '';
+            // Photo path is always the last column: after Type(1) + Team ID(1) + Team Name(1) + Team Score(1) + Participant ID(1) + Participant Name(1) + Stats(6) + Modifier ID(1) + Modifier Name(1) + Description(1) + Mission Effects(6) + Participant Effects(6) = index 27
+            const numStats = importedStatNames.length || 6; // Use imported stat count, fallback to 6
+            const photoPathIndex = 6 + numStats + 3 + numStats + numStats; // Base(6) + Stats + Modifier(3) + Mission Effects + Participant Effects
+            const photoPath = parts.length > photoPathIndex && parts[photoPathIndex] ? parts[photoPathIndex].trim() : '';
             
             newMissions[missionId] = {
               name: missionName,
