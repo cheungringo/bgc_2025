@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, RotateCcw, Users, Target, Plus, Minus, Trash2, Download, Upload, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, RotateCcw, Users, Target, Plus, Minus, Trash2, Download, Upload, Zap, ChevronDown, ChevronUp, Maximize2, X } from 'lucide-react';
 
 // Participant row component with dropdown
 const ParticipantRow = ({ teamId, pId, participant, isExpanded, onToggle, onNameChange, onStatChange, labels }) => {
@@ -192,6 +192,8 @@ const RadarMissionAnimation = () => {
   const [expandedParticipants, setExpandedParticipants] = useState(new Set()); // Track which participants have stats expanded
   const [editingTeams, setEditingTeams] = useState(new Set()); // Track which teams are being edited
   const [photoError, setPhotoError] = useState(false); // Track photo loading errors
+  const [isPhotoFullscreen, setIsPhotoFullscreen] = useState(false); // Track fullscreen photo state
+  const [showPhotoOnRight, setShowPhotoOnRight] = useState(false); // Track right-side photo display
   const fileInputRef = useRef(null);
   const audioContextRef = useRef(null);
   
@@ -1372,7 +1374,31 @@ const RadarMissionAnimation = () => {
 
           {/* Mission Photo Display */}
           <div className="bg-gray-800 border border-gray-600 rounded p-1 flex-shrink-0" style={{ minHeight: '150px' }}>
-            <div className="font-semibold text-gray-200 mb-0.5" style={{ fontSize: '10px' }}>Mission Photo</div>
+            <div className="flex items-center justify-between mb-0.5">
+              <div className="font-semibold text-gray-200" style={{ fontSize: '10px' }}>Mission Photo</div>
+              <div className="flex items-center gap-1">
+                <label className="flex items-center gap-0.5 cursor-pointer" style={{ fontSize: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={showPhotoOnRight}
+                    onChange={(e) => setShowPhotoOnRight(e.target.checked)}
+                    className="cursor-pointer"
+                    style={{ width: '8px', height: '8px' }}
+                  />
+                  <span className="text-gray-300">Right</span>
+                </label>
+                {missions[currentMissionId]?.photoPath && !photoError && (
+                  <button
+                    onClick={() => setIsPhotoFullscreen(true)}
+                    className="bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
+                    style={{ fontSize: '8px', padding: '2px 4px' }}
+                    title="Expand photo"
+                  >
+                    <Maximize2 size={10} />
+                  </button>
+                )}
+              </div>
+            </div>
             <div 
               className="bg-white rounded flex items-center justify-center"
               style={{ 
@@ -1403,7 +1429,7 @@ const RadarMissionAnimation = () => {
         </div>
 
         {/* Middle Column - Title, Team Scores, Probability, Radar Chart */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ flex: '0 0 auto', width: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, overflow: 'hidden', height: '100%', alignSelf: 'stretch' }}>
           {/* Title */}
           <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
             <input
@@ -1618,7 +1644,101 @@ const RadarMissionAnimation = () => {
             + Add Team
           </button>
         </div>
+
+        {/* Photo Column - Right Side */}
+        {showPhotoOnRight && missions[currentMissionId]?.photoPath && !photoError && (
+          <div className="bg-gray-800 border border-gray-600 rounded p-1" style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="flex items-center justify-between mb-1 flex-shrink-0">
+              <div className="font-semibold text-gray-200" style={{ fontSize: '12px' }}>Mission Photo</div>
+              <button
+                onClick={() => setIsPhotoFullscreen(true)}
+                className="bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
+                style={{ fontSize: '10px', padding: '4px 8px' }}
+                title="Expand photo"
+              >
+                <Maximize2 size={14} />
+              </button>
+            </div>
+            <div 
+              className="bg-white rounded flex items-center justify-center flex-1"
+              style={{ 
+                minHeight: 0,
+                padding: '12px',
+                border: '3px solid #ffffff',
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.2)'
+              }}
+            >
+              <img
+                src={missions[currentMissionId].photoPath}
+                alt={`${missions[currentMissionId]?.name || 'Mission'} Photo`}
+                onError={() => setPhotoError(true)}
+                className="max-w-full max-h-full object-contain"
+                style={{ display: 'block' }}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Fullscreen Photo Overlay */}
+      {isPhotoFullscreen && missions[currentMissionId]?.photoPath && !photoError && createPortal(
+        <div
+          onClick={() => setIsPhotoFullscreen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '95vw',
+              maxHeight: '95vh',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <img
+              src={missions[currentMissionId].photoPath}
+              alt={`${missions[currentMissionId]?.name || 'Mission'} Photo`}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '95vh',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
+            <button
+              onClick={() => setIsPhotoFullscreen(false)}
+              className="bg-gray-800 text-white rounded hover:bg-gray-700 flex items-center justify-center"
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                width: '40px',
+                height: '40px',
+                fontSize: '20px',
+                zIndex: 100000
+              }}
+              title="Close"
+            >
+              <X size={24} />
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
